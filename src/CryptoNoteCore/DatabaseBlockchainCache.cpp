@@ -228,6 +228,21 @@ Transaction extractTransaction(const RawBlock& block, uint32_t transactionIndex)
   return blockTemplate.baseTransaction;
 }
 
+size_t requestOutputKeyInputsCount(IDataBase& database, const Crypto::PublicKey& outputKey) {
+  auto batch = BlockchainReadBatch().requestInputCountByOutputKey(outputKey);
+  auto error = database.read(batch);
+  if (error) {
+    throw std::system_error(error, "Error while reading inputs count by output key");
+  }
+
+  auto result = batch.extractResult();
+  if (result.getInputCountByOutputKeys().count(outputKey) == 0) {
+    return 0;
+  }
+
+  return result.getInputCountByOutputKeys().at(outputKey);
+}
+
 size_t requestPaymentIdTransactionsCount(IDataBase& database, const Crypto::Hash& paymentId) {
   auto batch = BlockchainReadBatch().requestTransactionCountByPaymentId(paymentId);
   auto error = database.read(batch);
@@ -581,6 +596,7 @@ std::unique_ptr<IBlockchainCache> DatabaseBlockchainCache::split(uint32_t splitB
 
   auto deletingTransactionHashes = requestTransactionHashesFromBlockIndex(splitBlockIndex);
   requestDeleteTransactions(writeBatch, deletingTransactionHashes);
+requestDeleteOutputKeys(writeBatch, deletingTransactionHashes);
   requestDeletePaymentIds(writeBatch, deletingTransactionHashes);
 
   std::vector<ExtendedTransactionInfo> extendedTransactions;
@@ -677,6 +693,46 @@ void DatabaseBlockchainCache::requestDeleteTransactions(BlockchainWriteBatch& wr
   }
 }
 
+void DatabaseBlockchainCache::requestDeleteOutputKeys(BlockchainWriteBatch& writeBatch, const std::vector<Crypto::Hash>& transactionHashes) {
+  std::unordered_map<Crypto::PublicKey, size_t> outputCounts;
+
+  std::vector<Crypto::Hash> tx_ids;
+  tx_ids = std::move(transactionHashes);
+
+  std::vector<Crypto::Hash> missed_txs;
+  std::vector<BinaryArray> txs;
+  getRawTransactions(tx_ids, txs, missed_txs);
+
+  for (const auto& tx_raw: txs) {
+    Transaction transaction;
+    if (!fromBinaryArray(transaction, tx_raw)) {
+      throw std::runtime_error("Couldn't deserialize transaction");
+    }
+    for (const auto& input : transaction.inputs) {
+      if (input.type() == typeid(KeyInput)) {
+        const KeyInput& in = boost::get<KeyInput>(input);
+        std::vector<Crypto::PublicKey> outputKeys;
+        assert(!in.outputIndexes.empty());
+
+        std::vector<uint32_t> globalIndexes(in.outputIndexes.size());
+        globalIndexes[0] = in.outputIndexes[0];
+        for (size_t i = 1; i < in.outputIndexes.size(); ++i) {
+          globalIndexes[i] = globalIndexes[i - 1] + in.outputIndexes[i];
+        }
+
+        auto result = extractKeyOutputKeys(in.amount, getTopBlockIndex(), {globalIndexes.data(), globalIndexes.size()}, outputKeys);
+        for (const Crypto::PublicKey& outputKey : outputKeys) {
+          outputCounts[outputKey] += 1;
+        }
+      }
+    }
+  }
+
+  for (const auto& kv: outputCounts) {
+    requestDeleteOutputKey(writeBatch, kv.first, kv.second);
+  }
+}
+
 void DatabaseBlockchainCache::requestDeletePaymentIds(BlockchainWriteBatch& writeBatch, const std::vector<Crypto::Hash>& transactionHashes) {
   std::unordered_map<Crypto::Hash, size_t> paymentCounts;
 
@@ -692,6 +748,15 @@ void DatabaseBlockchainCache::requestDeletePaymentIds(BlockchainWriteBatch& writ
   for (const auto& kv: paymentCounts) {
     requestDeletePaymentId(writeBatch, kv.first, kv.second);
   }
+}
+
+void DatabaseBlockchainCache::requestDeleteOutputKey(BlockchainWriteBatch& writeBatch, const Crypto::PublicKey& outputKey, size_t toDelete) {
+  size_t count = requestOutputKeyInputsCount(database, outputKey);
+  assert(count > 0);
+  assert(count >= toDelete);
+
+  logger(Logging::DEBUGGING) << "Deleting last " << toDelete << " inputs of output key " << outputKey;
+  writeBatch.removeInputOutputKey(outputKey, static_cast<uint32_t>(count - toDelete));
 }
 
 void DatabaseBlockchainCache::requestDeletePaymentId(BlockchainWriteBatch& writeBatch, const Crypto::Hash& paymentId, size_t toDelete) {
@@ -825,6 +890,25 @@ void DatabaseBlockchainCache::pushTransaction(const CachedTransaction& cachedTra
   std::set<Amount> newKeyAmounts;
   std::set<Amount> newMultisignatureAmounts;
 
+  for (const auto& input : tx.inputs) {
+    if (input.type() == typeid(KeyInput)) {
+      const KeyInput& in = boost::get<KeyInput>(input);
+      std::vector<Crypto::PublicKey> outputKeys;
+      assert(!in.outputIndexes.empty());
+
+      std::vector<uint32_t> globalIndexes(in.outputIndexes.size());
+      globalIndexes[0] = in.outputIndexes[0];
+      for (size_t i = 1; i < in.outputIndexes.size(); ++i) {
+        globalIndexes[i] = globalIndexes[i - 1] + in.outputIndexes[i];
+      }
+
+      auto result = extractKeyOutputKeys(in.amount, getTopBlockIndex(), {globalIndexes.data(), globalIndexes.size()}, outputKeys);
+      for (const Crypto::PublicKey& outputKey : outputKeys) {
+        insertInputOutputKey(batch, in.keyImage, outputKey);
+      }
+    }
+  }
+
   for (auto& output : tx.outputs) {
     transactionCacheInfo.outputs.push_back(output.target);
 
@@ -956,6 +1040,20 @@ uint32_t DatabaseBlockchainCache::updateMultiOutputCount(Amount amount, int32_t 
   it->second += diff;
   assert(it->second >= 0);
   return it->second;
+}
+
+void DatabaseBlockchainCache::insertInputOutputKey(BlockchainWriteBatch& batch, Crypto::KeyImage inputKey, Crypto::PublicKey outputKey) {
+  BlockchainReadBatch readBatch;
+  uint32_t count = 0;
+
+  auto readResult = readDatabase(readBatch.requestInputCountByOutputKey(outputKey));
+  if (readResult.getInputCountByOutputKeys().count(outputKey) != 0) {
+    count = readResult.getInputCountByOutputKeys().at(outputKey);
+  }
+
+  count += 1;
+
+  batch.insertInputOutputKey(inputKey, outputKey, count);
 }
 
 void DatabaseBlockchainCache::insertPaymentId(BlockchainWriteBatch& batch, const Crypto::Hash& transactionHash, const Crypto::Hash& paymentId) {
@@ -1783,6 +1881,25 @@ ExtractOutputKeysResult DatabaseBlockchainCache::extractKeyOutputs(
   }
 
   return ExtractOutputKeysResult::SUCCESS;
+}
+
+std::vector<Crypto::KeyImage> DatabaseBlockchainCache::getInputsByOutputKey(const Crypto::PublicKey& outputKey) const {
+  auto countBatch = BlockchainReadBatch().requestInputCountByOutputKey(outputKey);
+  uint32_t inputCountByOutputKey = readDatabase(countBatch).getInputCountByOutputKeys().at(outputKey);
+
+  BlockchainReadBatch inputBatch;
+  for (uint32_t i = 0; i < inputCountByOutputKey; ++i) {
+    inputBatch.requestInputByOutputKey(outputKey, i);
+  }
+
+  auto result = readDatabase(inputBatch);
+  std::vector<Crypto::KeyImage> inputs;
+  inputs.reserve(result.getInputsByOutputKeys().size());
+  for(const auto& kv: result.getInputsByOutputKeys()) {
+    inputs.emplace_back(kv.second);
+  }
+
+  return inputs;
 }
 
 std::vector<Crypto::Hash> DatabaseBlockchainCache::getTransactionHashesByPaymentId(const Crypto::Hash& paymentId) const {

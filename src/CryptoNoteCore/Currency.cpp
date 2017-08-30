@@ -94,7 +94,7 @@ bool Currency::generateGenesisBlock() {
   //std::string hex_tx_represent = Common::toHex(txb);
 
   // Hard code coinbase tx in genesis block, because through generating tx use random, but genesis should be always the same
-  std::string genesisCoinbaseTxHex = "010a01ff0001ffffa7ec85afd1b101020a4a3a2fe7c7e8240a274a5b8f82b8ed5f72ab4ace97f2bd14909ce17692426d2101da6fab1075a7c13d4146e11b2c164a099073a5ca29d45d1cdfb6bfd21bd60f53";
+  std::string genesisCoinbaseTxHex = "010a01ff00018080d8ada0bbde3102e179690385fb995c33f7bde11a0d1cc31a6e1eef2f4a9436b06801fc781360ff2101a51f204aa37ea1d1cc15601c4fee00381a3c4838dfc718450c5af688856a6a7f";
   BinaryArray minerTxBlob;
 
   bool r =
@@ -158,6 +158,9 @@ bool Currency::getBlockReward(uint8_t blockMajorVersion, size_t medianSize, size
 
   uint64_t penalizedBaseReward = getPenalizedAmount(baseReward, medianSize, currentBlockSize);
   uint64_t penalizedFee = blockMajorVersion >= BLOCK_MAJOR_VERSION_2 ? getPenalizedAmount(fee, medianSize, currentBlockSize) : fee;
+if (cryptonoteCoinVersion() == 1) {
+  penalizedFee = getPenalizedAmount(fee, medianSize, currentBlockSize);
+}
 
   emissionChange = penalizedBaseReward - (fee - penalizedFee);
   reward = penalizedBaseReward + penalizedFee;
@@ -560,9 +563,8 @@ m_upgradeWindow(currency.m_upgradeWindow),
 m_blocksFileName(currency.m_blocksFileName),
 m_blockIndexesFileName(currency.m_blockIndexesFileName),
 m_txPoolFileName(currency.m_txPoolFileName),
-m_mandatoryTransaction(currency.m_mandatoryTransaction),
 m_genesisBlockReward(currency.m_genesisBlockReward),
-m_killHeight(currency.m_killHeight),
+m_cryptonoteCoinVersion(currency.m_cryptonoteCoinVersion),
 m_testnet(currency.m_testnet),
 genesisBlockTemplate(std::move(currency.genesisBlockTemplate)),
 cachedGenesisBlock(new CachedBlock(genesisBlockTemplate)),
@@ -581,11 +583,10 @@ CurrencyBuilder::CurrencyBuilder(Logging::ILogger& log) : m_currency(log) {
 
   moneySupply(parameters::MONEY_SUPPLY);
   emissionSpeedFactor(parameters::EMISSION_SPEED_FACTOR);
+cryptonoteCoinVersion(parameters::CRYPTONOTE_COIN_VERSION);
 genesisBlockReward(parameters::GENESIS_BLOCK_REWARD);
 
   rewardBlocksWindow(parameters::CRYPTONOTE_REWARD_BLOCKS_WINDOW);
-mandatoryTransaction(parameters::MANDATORY_TRANSACTION);
-killHeight(parameters::KILL_HEIGHT);
   blockGrantedFullRewardZone(parameters::CRYPTONOTE_BLOCK_GRANTED_FULL_REWARD_ZONE);
   minerTxBlobReservedSize(parameters::CRYPTONOTE_COINBASE_BLOB_RESERVED_SIZE);
 

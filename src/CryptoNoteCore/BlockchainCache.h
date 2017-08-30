@@ -205,6 +205,7 @@ public:
     std::function<ExtractOutputKeysResult(const CachedTransactionInfo& info, PackedOutIndex index,
     uint32_t globalIndex)> pred) const override;
 
+  virtual std::vector<Crypto::KeyImage> getInputsByOutputKey(const Crypto::PublicKey& outputKey) const override;
   virtual std::vector<Crypto::Hash> getTransactionHashesByPaymentId(const Crypto::Hash& paymentId) const override;
   virtual std::vector<Crypto::Hash> getBlockHashesByTimestamps(uint64_t timestampBegin, size_t secondsCount) const override;
 

@@ -166,6 +166,7 @@ public:
                     std::function<ExtractOutputKeysResult(const CachedTransactionInfo& info, PackedOutIndex index,
                                                           uint32_t globalIndex)> pred) const override;
 
+virtual std::vector<Crypto::KeyImage> getInputsByOutputKey(const Crypto::PublicKey& outputKey) const override;
   virtual std::vector<Crypto::Hash> getTransactionHashesByPaymentId(const Crypto::Hash& paymentId) const override;
   virtual std::vector<Crypto::Hash> getBlockHashesByTimestamps(uint64_t timestampBegin, size_t secondsCount) const override;
 
@@ -202,6 +203,7 @@ private:
   uint32_t insertMultisignatureToGlobalIndex(uint64_t amount, PackedOutIndex output);
   uint32_t updateKeyOutputCount(Amount amount, int32_t diff) const;
   uint32_t updateMultiOutputCount(Amount amount, int32_t diff) const;
+void insertInputOutputKey(BlockchainWriteBatch& batch, Crypto::KeyImage inputKey, Crypto::PublicKey outputKey);
   void insertPaymentId(BlockchainWriteBatch& batch, const Crypto::Hash& transactionHash, const Crypto::Hash& paymentId);
   void insertBlockTimestamp(BlockchainWriteBatch& batch, uint64_t timestamp, const Crypto::Hash& blockHash);
 
@@ -223,7 +225,9 @@ private:
   void requestDeleteSpentOutputs(BlockchainWriteBatch& writeBatch, uint32_t splitBlockIndex, const TransactionValidatorState& spentOutputs);
   std::vector<Crypto::Hash> requestTransactionHashesFromBlockIndex(uint32_t splitBlockIndex);
   void requestDeleteTransactions(BlockchainWriteBatch& writeBatch, const std::vector<Crypto::Hash>& transactionHashes);
+void requestDeleteOutputKeys(BlockchainWriteBatch& writeBatch, const std::vector<Crypto::Hash>& transactionHashes);
   void requestDeletePaymentIds(BlockchainWriteBatch& writeBatch, const std::vector<Crypto::Hash>& transactionHashes);
+void requestDeleteOutputKey(BlockchainWriteBatch& writeBatch, const Crypto::PublicKey& outputKey, size_t toDelete);
   void requestDeletePaymentId(BlockchainWriteBatch& writeBatch, const Crypto::Hash& paymentId, size_t toDelete);
   void requestDeleteKeyOutputs(BlockchainWriteBatch& writeBatch, const std::map<IBlockchainCache::Amount, IBlockchainCache::GlobalOutputIndex>& boundaries);
   void requestDeleteKeyOutputsAmount(BlockchainWriteBatch& writeBatch, IBlockchainCache::Amount amount, IBlockchainCache::GlobalOutputIndex boundary, uint32_t outputsCount);

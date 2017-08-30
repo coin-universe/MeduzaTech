@@ -186,6 +186,7 @@ public:
   virtual std::vector<Crypto::Hash> getTransactionHashes() const = 0;
   virtual std::vector<uint32_t> getRandomOutsByAmount(uint64_t amount, size_t count, uint32_t blockIndex) const = 0;
 
+  virtual std::vector<Crypto::KeyImage> getInputsByOutputKey(const Crypto::PublicKey& outputKey) const = 0;
   virtual std::vector<Crypto::Hash> getTransactionHashesByPaymentId(const Crypto::Hash& paymentId) const = 0;
   virtual std::vector<Crypto::Hash> getBlockHashesByTimestamps(uint64_t timestampBegin, size_t secondsCount) const = 0;
 };

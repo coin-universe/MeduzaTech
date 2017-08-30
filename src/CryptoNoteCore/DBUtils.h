@@ -65,6 +65,7 @@ namespace DB {
   const std::string TRANSACTIONS_COUNT_KEY = "txs_count";
 
   const std::string KEY_OUTPUT_KEY_PREFIX = "j";
+  const std::string INPUT_KEYS_BY_OUTPUT_KEY = "input-keys-output-key";
 
   template <class Value>
   std::string serialize(const Value& value, const std::string& name) {

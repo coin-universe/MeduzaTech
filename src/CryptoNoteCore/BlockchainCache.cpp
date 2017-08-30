@@ -953,6 +953,19 @@ ExtractOutputKeysResult BlockchainCache::extractKeyOutputs(
   return ExtractOutputKeysResult::SUCCESS;
 }
 
+std::vector<Crypto::KeyImage> BlockchainCache::getInputsByOutputKey(const Crypto::PublicKey& outputKey) const {
+  std::vector<Crypto::KeyImage> inputs;
+
+  if (parent != nullptr) {
+    auto inputs_tmp = parent->getInputsByOutputKey(outputKey);
+    inputs.reserve(inputs_tmp.size());
+    std::copy(inputs_tmp.begin(), inputs_tmp.end(), std::back_inserter(inputs));
+  }
+
+  logger(Logging::DEBUGGING) << "Found " << inputs.size() << " inputs with output key " << outputKey;
+  return inputs;
+}
+
 std::vector<Crypto::Hash> BlockchainCache::getTransactionHashesByPaymentId(const Crypto::Hash& paymentId) const {
   std::vector<Crypto::Hash> transactionHashes;
 

@@ -127,8 +127,18 @@ BlockchainReadBatch& BlockchainReadBatch::requestMultisignatureOutputAmount(uint
   return *this;
 }
 
+BlockchainReadBatch& BlockchainReadBatch::requestInputCountByOutputKey(const Crypto::PublicKey& outputKey) {
+  state.inputCountByOutputKeys.emplace(outputKey, 0);
+  return *this;
+}
+
 BlockchainReadBatch& BlockchainReadBatch::requestTransactionCountByPaymentId(const Crypto::Hash& paymentId) {
   state.transactionCountsByPaymentIds.emplace(paymentId, 0);
+  return *this;
+}
+
+BlockchainReadBatch& BlockchainReadBatch::requestInputByOutputKey(const Crypto::PublicKey& outputKey, uint32_t inputIndexWithinOutputKey) {
+  state.inputsByOutputKeys.emplace(std::make_pair(outputKey, inputIndexWithinOutputKey), NULL_KEY_IMAGE);
   return *this;
 }
 
@@ -183,6 +193,8 @@ std::vector<std::string> BlockchainReadBatch::getRawKeys() const {
   DB::serializeKeys(rawKeys, DB::CLOSEST_TIMESTAMP_BLOCK_INDEX_PREFIX, state.closestTimestampBlockIndex);
   DB::serializeKeys(rawKeys, DB::KEY_OUTPUT_AMOUNTS_COUNT_PREFIX, state.keyOutputAmounts);
   DB::serializeKeys(rawKeys, DB::MULTISIGNATURE_OUTPUT_AMOUNTS_COUNT_PREFIX, state.multisignatureOutputAmounts);
+  DB::serializeKeys(rawKeys, DB::INPUT_KEYS_BY_OUTPUT_KEY, state.inputCountByOutputKeys);
+  DB::serializeKeys(rawKeys, DB::INPUT_KEYS_BY_OUTPUT_KEY, state.inputsByOutputKeys);
   DB::serializeKeys(rawKeys, DB::PAYMENT_ID_TO_TX_HASH_PREFIX, state.transactionCountsByPaymentIds);
   DB::serializeKeys(rawKeys, DB::PAYMENT_ID_TO_TX_HASH_PREFIX, state.transactionHashesByPaymentIds);
   DB::serializeKeys(rawKeys, DB::TIMESTAMP_TO_BLOCKHASHES_PREFIX, state.blockHashesByTimestamp);
@@ -292,8 +304,16 @@ const std::unordered_map<uint32_t, IBlockchainCache::Amount>& BlockchainReadResu
   return state.multisignatureOutputAmounts;
 }
 
+const std::unordered_map<Crypto::PublicKey, uint32_t>& BlockchainReadResult::getInputCountByOutputKeys() const {
+  return state.inputCountByOutputKeys;
+}
+
 const std::unordered_map<Crypto::Hash, uint32_t>& BlockchainReadResult::getTransactionCountByPaymentIds() const {
   return state.transactionCountsByPaymentIds;
+}
+
+const std::unordered_map<std::pair<Crypto::PublicKey, uint32_t>, Crypto::KeyImage>& BlockchainReadResult::getInputsByOutputKeys() const {
+  return state.inputsByOutputKeys;
 }
 
 const std::unordered_map<std::pair<Crypto::Hash, uint32_t>, Crypto::Hash>& BlockchainReadResult::getTransactionHashesByPaymentIds() const {
@@ -334,6 +354,8 @@ void BlockchainReadBatch::submitRawResult(const std::vector<std::string>& values
   DB::deserializeValues(state.closestTimestampBlockIndex, iter, DB::CLOSEST_TIMESTAMP_BLOCK_INDEX_PREFIX);
   DB::deserializeValues(state.keyOutputAmounts, iter, DB::KEY_OUTPUT_AMOUNTS_COUNT_PREFIX);
   DB::deserializeValues(state.multisignatureOutputAmounts, iter, DB::MULTISIGNATURE_OUTPUT_AMOUNTS_COUNT_PREFIX);
+  DB::deserializeValues(state.inputCountByOutputKeys, iter, DB::INPUT_KEYS_BY_OUTPUT_KEY);
+  DB::deserializeValues(state.inputsByOutputKeys, iter, DB::INPUT_KEYS_BY_OUTPUT_KEY);
   DB::deserializeValues(state.transactionCountsByPaymentIds, iter, DB::PAYMENT_ID_TO_TX_HASH_PREFIX);
   DB::deserializeValues(state.transactionHashesByPaymentIds, iter, DB::PAYMENT_ID_TO_TX_HASH_PREFIX);
   DB::deserializeValues(state.blockHashesByTimestamp, iter, DB::TIMESTAMP_TO_BLOCKHASHES_PREFIX);
@@ -371,6 +393,8 @@ keyOutputAmountsCount(std::move(state.keyOutputAmountsCount)),
 multisignatureOutputAmountsCount(std::move(state.multisignatureOutputAmountsCount)),
 keyOutputAmounts(std::move(state.keyOutputAmounts)),
 multisignatureOutputAmounts(std::move(state.multisignatureOutputAmounts)),
+inputCountByOutputKeys(std::move(state.inputCountByOutputKeys)),
+inputsByOutputKeys(std::move(state.inputsByOutputKeys)),
 transactionCountsByPaymentIds(std::move(state.transactionCountsByPaymentIds)),
 transactionHashesByPaymentIds(std::move(state.transactionHashesByPaymentIds)),
 transactionsCount(std::move(state.transactionsCount)) {
@@ -393,6 +417,8 @@ size_t BlockchainReadState::size() const {
     closestTimestampBlockIndex.size() +
     keyOutputAmounts.size() +
     multisignatureOutputAmounts.size() +
+    inputCountByOutputKeys.size() +
+    inputsByOutputKeys.size() +
     transactionCountsByPaymentIds.size() +
     transactionHashesByPaymentIds.size() +
     blockHashesByTimestamp.size() +

@@ -33,6 +33,7 @@ public:
   BlockchainWriteBatch& insertSpentKeyImages(uint32_t blockIndex, const std::unordered_set<Crypto::KeyImage>& spentKeyImages);
   BlockchainWriteBatch& insertCachedTransaction(const ExtendedTransactionInfo& transaction, uint64_t totalTxsCount);
   BlockchainWriteBatch& insertPaymentId(const Crypto::Hash& transactionHash, const Crypto::Hash paymentId, uint32_t totalTxsCountForPaymentId);
+  BlockchainWriteBatch& insertInputOutputKey(Crypto::KeyImage inputKey, Crypto::PublicKey outputKey, uint32_t totalInputsCountForOutputKey);
   BlockchainWriteBatch& insertCachedBlock(const CachedBlockInfo& block, uint32_t blockIndex, const std::vector<Crypto::Hash>& blockTxs);
   BlockchainWriteBatch& insertKeyOutputGlobalIndexes(IBlockchainCache::Amount amount, const std::vector<PackedOutIndex>& outputs, uint32_t totalOutputsCountForAmount);
   BlockchainWriteBatch& insertMultisignatureOutputGlobalIndexes(IBlockchainCache::Amount amount, const std::vector<PackedOutIndex>& outputs, uint32_t totalOutputsCountForAmount);
@@ -47,6 +48,7 @@ public:
   BlockchainWriteBatch& removeSpentKeyImages(uint32_t blockIndex, const std::vector<Crypto::KeyImage>& spentKeyImages);
   BlockchainWriteBatch& removeCachedTransaction(const Crypto::Hash& transactionHash, uint64_t totalTxsCount);
   BlockchainWriteBatch& removePaymentId(const Crypto::Hash paymentId, uint32_t totalTxsCountForPaytmentId);
+  BlockchainWriteBatch& removeInputOutputKey(const Crypto::PublicKey outputKey, uint32_t totalInputsCountForOutputKey);
   BlockchainWriteBatch& removeCachedBlock(const Crypto::Hash& blockHash, uint32_t blockIndex);
   BlockchainWriteBatch& removeKeyOutputGlobalIndexes(IBlockchainCache::Amount amount, uint32_t outputsToRemoveCount, uint32_t totalOutputsCountForAmount);
   BlockchainWriteBatch& removeMultisignatureOutputGlobalIndexes(IBlockchainCache::Amount amount, uint32_t outputsToRemoveCount, uint32_t totalOutputsCountForAmount);
