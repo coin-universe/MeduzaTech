@@ -35,7 +35,7 @@ const size_t   BLOCKCHAIN_TIMESTAMP_CHECK_WINDOW             = 60;
 
 // MONEY_SUPPLY - total number coins to be generated
 const uint64_t MONEY_SUPPLY                                  = UINT64_C(40000000000000000);
-const size_t CRYPTONOTE_COIN_VERSION                          = 1.0;
+const size_t CRYPTONOTE_COIN_VERSION                          = 0;
 const unsigned EMISSION_SPEED_FACTOR                         = 25;
 const uint64_t GENESIS_BLOCK_REWARD                          = UINT64_C(28000000000000000);
 static_assert(EMISSION_SPEED_FACTOR <= 8 * sizeof(uint64_t), "Bad EMISSION_SPEED_FACTOR");
@@ -103,8 +103,8 @@ const size_t   BLOCKS_IDS_SYNCHRONIZING_DEFAULT_COUNT        =  10000;  //by def
 const size_t   BLOCKS_SYNCHRONIZING_DEFAULT_COUNT            =  100;    //by default, blocks count in blocks downloading
 const size_t   COMMAND_RPC_GET_BLOCKS_FAST_MAX_COUNT         =  1000;
 
-const int      P2P_DEFAULT_PORT                              =  13417;
-const int      RPC_DEFAULT_PORT                              =  13418;
+const int      P2P_DEFAULT_PORT                              =  44973;
+const int      RPC_DEFAULT_PORT                              =  44974;
 
 const size_t   P2P_LOCAL_WHITE_PEERLIST_LIMIT                =  1000;
 const size_t   P2P_LOCAL_GRAY_PEERLIST_LIMIT                 =  5000;
@@ -121,7 +121,7 @@ const uint64_t P2P_DEFAULT_INVOKE_TIMEOUT                    = 60 * 2 * 1000; //
 const size_t   P2P_DEFAULT_HANDSHAKE_INVOKE_TIMEOUT          = 5000;          // 5 seconds
 const char     P2P_STAT_TRUSTED_PUB_KEY[]                    = "";
 
-const char* const SEED_NODES[] = { "173.212.221.64:13417", "173.212.249.142:13417" };
+const char* const SEED_NODES[] = { "173.212.221.64:44973", "173.212.249.142:44973" };
 
 
 struct CheckpointData {
